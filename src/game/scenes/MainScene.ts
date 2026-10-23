@@ -143,7 +143,7 @@ export class MainScene extends Phaser.Scene {
 
   update(time: number, delta: number) {
     if (this.isGameOver) return;
-    if (useGameStore.getState().gameStatus !== "playing") return;
+    if (useGameStore.getState().gameStatus !== "singlePlayer") return;
     // Передаем логику обновления физики в класс танка
     this.tank.updatePhysics((reason) => this.handleGameOver(reason));
     // Обновляем AI каждого живого бота в группе

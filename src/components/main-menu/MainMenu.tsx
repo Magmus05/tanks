@@ -10,7 +10,7 @@ export const MainMenu = () => {
         <div className="menu-buttons__item">
           <button
             className="menu-buttons__button"
-            onClick={() => setGameStatus("playing")}
+            onClick={() => setGameStatus("singlePlayer")}
           >
             Одиночная игра
           </button>
@@ -35,11 +35,7 @@ export const MainMenu = () => {
         <div className="menu-buttons__item">
           <button
             className="menu-buttons__button"
-            onClick={() =>
-              alert(
-                "Тормози! не так быстро! Скоро: будет доступен Выбор комнат! а пока, закинь донат автору на хлебушек! ;)",
-              )
-            }
+            onClick={() => setGameStatus("multiPlayer")}
           >
             Мультиплеер
           </button>

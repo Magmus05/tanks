@@ -7,10 +7,15 @@ import { useGameStore } from "./shared/store/gameStore";
 function App() {
   // Забираем статус игры и состояние загрузки из Zustand
   const { gameStatus, isAssetsLoaded } = useGameStore();
-  const showHUD = gameStatus === "playing" && isAssetsLoaded;
+  console.log(isAssetsLoaded);
+  const showHUD =
+    (gameStatus === "singlePlayer" && isAssetsLoaded) ||
+    (gameStatus === "multiPlayer" && isAssetsLoaded);
   // Определяем, нужно ли показать экран загрузки:
   // Если игрок ХОЧЕТ играть (playing), но ассеты ЕЩЕ НЕ скачались (false)
-  const showLoading = gameStatus === "playing" && !isAssetsLoaded;
+  const showLoading =
+    (gameStatus === "singlePlayer" && !isAssetsLoaded) ||
+    (gameStatus === "multiPlayer" && !isAssetsLoaded);
 
   return (
     <div

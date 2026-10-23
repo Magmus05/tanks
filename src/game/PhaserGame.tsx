@@ -3,6 +3,7 @@ import Phaser from "phaser";
 
 import { MainScene } from "./scenes/MainScene";
 import { StartScene } from "./scenes/StartScene";
+import { MainSceneMultiPlayer } from "./scenes/MainSceneMultiPlayer";
 
 if (import.meta.hot) {
   import.meta.hot.accept("./scenes/MainScene", () => {
@@ -43,7 +44,7 @@ export const PhaserGame = ({ onReady }: PhaserGameProps) => {
         autoCenter: Phaser.Scale.CENTER_BOTH,
       },
 
-      scene: [StartScene, MainScene],
+      scene: [StartScene, MainScene, MainSceneMultiPlayer],
     });
     // console.log(game);
 

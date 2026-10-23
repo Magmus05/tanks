@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-type GameStatus = "menu" | "playing" | "finished";
+type GameStatus = "menu" | "singlePlayer" | "finished" | "multiPlayer";
 
 interface GameState {
   gameStatus: GameStatus;

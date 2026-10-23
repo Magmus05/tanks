@@ -2,10 +2,7 @@ import "./GameBar.css";
 import { useGameStore } from "../../shared/store/gameStore";
 
 export const GameBar = () => {
-  const { hp, bulletsCount, score, countsHit, setGameStatus, gameStatus } =
-    useGameStore();
-
-  console.log(gameStatus);
+  const { hp, bulletsCount, score, countsHit, setGameStatus } = useGameStore();
 
   return (
     <div className="game-hud">

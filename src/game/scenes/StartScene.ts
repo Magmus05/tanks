@@ -27,8 +27,19 @@ export class StartScene extends Phaser.Scene {
     const currentStore = useGameStore.getState();
 
     // Если на момент старта сцены статус УЖЕ "playing" и всё УЖЕ загрузилось
-    if (currentStore.gameStatus === "playing" && currentStore.isAssetsLoaded) {
+    if (
+      currentStore.gameStatus === "singlePlayer" &&
+      currentStore.isAssetsLoaded
+    ) {
       this.scene.start("MainScene");
+      return; // Выходим, подписка не нужна
+    }
+
+    if (
+      currentStore.gameStatus === "multiPlayer" &&
+      currentStore.isAssetsLoaded
+    ) {
+      this.scene.start("MainSceneMultiPlayer");
       return; // Выходим, подписка не нужна
     }
 
@@ -37,7 +48,11 @@ export class StartScene extends Phaser.Scene {
       const status: string = state.gameStatus;
       const loaded: boolean = state.isAssetsLoaded;
 
-      if (status === "playing" && loaded) {
+      if (status === "multiPlayer" && loaded) {
+        unsubscribe();
+        this.scene.start("MainSceneMultiPlayer");
+      }
+      if (status === "singlePlayer" && loaded) {
         unsubscribe();
         this.scene.start("MainScene");
       }
