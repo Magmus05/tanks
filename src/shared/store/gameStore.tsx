@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from "zustand";
 
 type GameStatus = "menu" | "singlePlayer" | "finished" | "multiPlayer";
@@ -11,6 +12,15 @@ interface GameState {
   score: number;
   countsHit: number;
   countBots: number;
+  // Мультиплеерный стейт
+  lobbyPlayers: Array<{ id: string; name: string; isHost: boolean }>;
+  isHost: boolean;
+  isConnectedToSocket: boolean;
+
+  // Экшены для лобби
+  setLobbyPlayers: (players: any[]) => void;
+  setIsHost: (isHost: boolean) => void;
+  setIsConnected: (connected: boolean) => void;
 
   setGameStatus: (status: GameStatus) => void;
   setAssetsLoaded: (loaded: boolean) => void;
@@ -31,6 +41,9 @@ export const useGameStore = create<GameState>((set) => ({
   score: 0,
   countsHit: 0,
   countBots: 2,
+  lobbyPlayers: [],
+  isHost: false,
+  isConnectedToSocket: false,
 
   setGameStatus: (gameStatus) => set({ gameStatus }),
   setAssetsLoaded: (isAssetsLoaded) => set({ isAssetsLoaded }),
@@ -41,6 +54,9 @@ export const useGameStore = create<GameState>((set) => ({
   incrementСountsHit: () =>
     set((state) => ({ countsHit: state.countsHit + 1 })),
   resetGameStats: () => set({ hp: 100, bulletsCount: 50, score: 0 }),
+  setLobbyPlayers: (lobbyPlayers) => set({ lobbyPlayers }),
+  setIsHost: (isHost) => set({ isHost }),
+  setIsConnected: (isConnectedToSocket) => set({ isConnectedToSocket }),
 }));
 
 // Как это будет работать в будущем для Multiplayer:
