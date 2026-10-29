@@ -7,7 +7,7 @@ import { useGameStore } from "./shared/store/gameStore";
 function App() {
   // Забираем статус игры и состояние загрузки из Zustand
   const { gameStatus, isAssetsLoaded } = useGameStore();
-  console.log(isAssetsLoaded);
+
   const showHUD =
     (gameStatus === "singlePlayer" && isAssetsLoaded) ||
     (gameStatus === "multiPlayer" && isAssetsLoaded);

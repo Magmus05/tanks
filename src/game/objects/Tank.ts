@@ -13,10 +13,18 @@ export class Tank extends Phaser.Physics.Arcade.Sprite {
     // Добавляем объект на сцену и включаем физику
     scene.add.existing(this);
     scene.physics.add.existing(this);
+    if (this.body) {
+      // Убираем отскок для локального игрока при ударах обо все объекты
+      const arcadeBody = this.body as Phaser.Physics.Arcade.Body;
+      // Правильное изменение bounce через свойства Vector2 (x и y)
+      arcadeBody.bounce.x = 0;
+      arcadeBody.bounce.y = 0;
+    }
 
     this.setScale(0.35);
     this.setCollideWorldBounds(true);
     this.setDepth(2);
+    this.setBodySize(150, 150, true);
 
     // Инициализируем управление внутри танка
     this.cursors = scene.input.keyboard!.createCursorKeys();
@@ -90,13 +98,19 @@ export class Tank extends Phaser.Physics.Arcade.Sprite {
   }
   // Метод внутри класса Tank
   public playDamageEffect() {
+    // Останавливаем текущие анимации на этом объекте, чтобы они не накладывались
+    this.scene.tweens.killTweensOf(this);
+    this.setAlpha(1); // Сбрасываем в полную видимость
     // Запускаем быстрое мигание прозрачности танка (от 1 до 0.3 и обратно)
     this.scene.tweens.add({
       targets: this,
-      alpha: 0.3,
-      duration: 50,
+      alpha: 0.2,
+      duration: 80,
       yoyo: true,
-      repeat: 2, // Повторится 2 раза
+      repeat: 2,
+      onComplete: () => {
+        this.setAlpha(1); // Гарантированно возвращаем видимость в 100%
+      },
     });
   }
 

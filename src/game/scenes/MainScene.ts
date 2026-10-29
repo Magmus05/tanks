@@ -58,6 +58,7 @@ export class MainScene extends Phaser.Scene {
     });
 
     this.enemies = this.physics.add.group();
+
     // Спавним двух ботов в разных частях карты
     const botsCount = useGameStore.getState().countBots;
 
@@ -92,6 +93,7 @@ export class MainScene extends Phaser.Scene {
     this.physics.add.collider(this.tank, this.enemies);
     this.physics.add.collider(this.enemies, this.layer2);
     this.physics.add.collider(this.enemies, this.enemies);
+
     // Снаряды игрока разрушают layer2 (стены)
     this.physics.add.overlap(
       this.bullets,

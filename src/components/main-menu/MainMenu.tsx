@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // import "./MainMenu.css";
 // import { useGameStore } from "../../shared/store/gameStore";
@@ -68,12 +69,16 @@ export const MainMenu = () => {
   const [playerName, setPlayerName] = useState("");
   const [isConnected, setIsConnected] = useState(false);
 
+  const startGame = () => {
+    setGameStatus("multiPlayer");
+  };
+
   // Подключение к лобби сервера
   const connectToLobby = () => {
     if (!playerName.trim()) return alert("Введите имя!");
 
-    // socket = io("http://localhost:3000");
-    socket = io("http://192.168.88.216:3000");
+    socket = io("http://localhost:3000");
+    // socket = io("http://192.168.88.216:3000");
     socket.on("connect", () => {
       setIsConnected(true);
       socket?.emit("joinLobby", { name: playerName });
@@ -82,6 +87,7 @@ export const MainMenu = () => {
     socket.on("lobbyUpdate", (players: any[]) => {
       setLobbyPlayers(players);
       // Проверяем, являемся ли мы хостом
+
       const me = players.find((p) => p.id === socket?.id);
       if (me) setIsHost(me.isHost);
     });
@@ -107,7 +113,7 @@ export const MainMenu = () => {
 
   return (
     <div className="ui-overlay">
-      <h1>ТАНКИ ОНЛАЙН</h1>
+      {/* <h1>ТАНКИ ОНЛАЙН</h1> */}
       <div className="menu-buttons">
         {/* ОДИНОЧНАЯ ИГРА */}
         <div className="menu-buttons__item">
@@ -150,7 +156,11 @@ export const MainMenu = () => {
                 onChange={(e) => setPlayerName(e.target.value)}
                 className="lobby-input"
               />
-              <button className="menu-buttons__button" onClick={connectToLobby}>
+              <button
+                className="menu-buttons__button"
+                // onClick={connectToLobby}
+                onClick={startGame}
+              >
                 Подключиться к серверу
               </button>
             </div>

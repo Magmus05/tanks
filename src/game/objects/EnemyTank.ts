@@ -23,6 +23,17 @@ export class EnemyTank extends Phaser.Physics.Arcade.Sprite {
 
     scene.add.existing(this);
     scene.physics.add.existing(this);
+    if (this.body) {
+      // Убираем любой физический отскок/импульс
+      const arcadeBody = this.body as Phaser.Physics.Arcade.Body;
+
+      // Правильная установка immovable через свойство
+      arcadeBody.immovable = true;
+
+      // Правильное изменение bounce через свойства Vector2 (x и y)
+      arcadeBody.bounce.x = 0;
+      arcadeBody.bounce.y = 0;
+    }
 
     this.setScale(0.35);
     this.setCollideWorldBounds(true);

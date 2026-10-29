@@ -1,24 +1,24 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Phaser from "phaser";
-import { Socket } from "socket.io-client";
+import { io, Socket } from "socket.io-client";
 import { Tank } from "../objects/Tank";
 import { Bullet } from "../objects/Bullet";
 import { RemotePlayer } from "../objects/RemotePlayer";
-import { useGameStore } from "../../shared/store/gameStore";
-import { networkSocket } from "../../components/main-menu/MainMenu";
+import { useGameStore } from "../../shared/store/gameStore"; // Импортируйте ваш Zustand стор
 
 export class MainSceneMultiPlayer extends Phaser.Scene {
   private socket!: Socket;
   private tank!: Tank;
+  private remotePlayers!: Phaser.GameObjects.Group;
   private bullets!: Phaser.Physics.Arcade.Group;
-  private enemyBullets!: Phaser.Physics.Arcade.Group; // Будет успешно создана
+  private enemyBullets!: Phaser.Physics.Arcade.Group;
   private spaceKey!: Phaser.Input.Keyboard.Key;
 
   private layer1!: any;
   private layer2!: any;
 
-  private remotePlayers!: Phaser.Physics.Arcade.Group;
+  // Храним прошлые координаты, чтобы отправлять пакеты на сервер ТОЛЬКО при реальном изменении позиции
   private lastPosition = { x: 0, y: 0, rotation: 0 };
 
   constructor() {
@@ -26,7 +26,7 @@ export class MainSceneMultiPlayer extends Phaser.Scene {
   }
 
   preload() {
-    // Ассеты загружены в StartScene
+    // Ассеты уже загружены в StartScene, здесь preload оставляем пустым
   }
 
   create() {
@@ -45,29 +45,23 @@ export class MainSceneMultiPlayer extends Phaser.Scene {
     this.layer2 = map.createLayer("layer2", sharedTileset, 0, 0)!;
     this.layer2.setCollisionBetween(1, 1000);
 
-    // =========================================================================
-    // ИСПРАВЛЕНО: Сначала инициализируем ВСЕ группы, чтобы избежать undefined
-    // =========================================================================
-
-    // Создание локального танка игрока
+    // 2. Игрок и его снаряды
     this.tank = new Tank(this, 1150, 700, this.layer1);
 
-    // Группа ВАШИХ снарядов
     this.bullets = this.physics.add.group({
       classType: Bullet,
       maxSize: 50,
       runChildUpdate: true,
     });
 
-    // ИСПРАВЛЕНИЕ: Создаем группу ЧУЖИХ снарядов
     this.enemyBullets = this.physics.add.group({
       classType: Bullet,
       maxSize: 50,
       runChildUpdate: true,
     });
 
-    // Группа сетевых танков соперников
-    this.remotePlayers = this.physics.add.group();
+    // 3. Инициализация группы для соперников
+    this.remotePlayers = this.add.group();
 
     // Настройка камеры и ввода
     this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
@@ -76,16 +70,11 @@ export class MainSceneMultiPlayer extends Phaser.Scene {
       Phaser.Input.Keyboard.KeyCodes.SPACE,
     );
 
-    // Коллизии объектов
+    // Коллизии игрока
     this.physics.add.collider(this.tank, this.layer2);
     this.physics.add.collider(this.tank, this.remotePlayers);
-    this.physics.add.collider(this.remotePlayers, this.layer2); // Раскомментировано для честных столкновений врагов со стенами
 
-    // =========================================================================
-    // Теперь физические группы готовы, настраиваем оверлапы без ошибок
-    // =========================================================================
-
-    // Столкновение снарядов со стенами карты
+    // Попадание ваших пуль в стены карты
     this.physics.add.overlap(
       this.bullets,
       this.layer2,
@@ -93,6 +82,7 @@ export class MainSceneMultiPlayer extends Phaser.Scene {
       undefined,
       this,
     );
+    // Попадание других пуль в стены карты
     this.physics.add.overlap(
       this.enemyBullets,
       this.layer2,
@@ -101,16 +91,15 @@ export class MainSceneMultiPlayer extends Phaser.Scene {
       this,
     );
 
-    // Ваши пули могут попасть ТОЛЬКО в чужие танки
+    // Попадание Моих пуль в СЕТЕВЫХ ИГРОКОВ (Регистрация попадания)
     this.physics.add.overlap(
-      this.bullets,
-      this.remotePlayers,
+      this.bullets, // Первый аргумент (объект1)
+      this.remotePlayers, // Второй аргумент (объект2)
       this.handleMyBulletHitEnemy,
       undefined,
       this,
     );
-
-    // Чужие пули могут попасть ТОЛЬКО в ваш танк
+    // Попадание соперника в меня (Регистрация попадания)
     this.physics.add.overlap(
       this.enemyBullets,
       this.tank,
@@ -120,17 +109,15 @@ export class MainSceneMultiPlayer extends Phaser.Scene {
     );
 
     // ================= НАСТРОЙКА WEB-SOCKETS =================
-    this.socket = networkSocket!;
-
-    // Сообщаем серверу, что наша сцена загрузилась и мы готовы получить танки
-    this.socket.emit("requestActivePlayers");
+    // Подключаемся к бэкенду на порту 3000
+    this.socket = io("http://localhost:3000");
 
     this.socket.on("connect", () => {
       console.log("Успешно подключились к серверу сокетов!");
-      const playerName = "Игрок";
+      // Отправляем имя игрока на сервер
+      const playerName = "Игрок"; // В будущем заберете из инпута React
       this.socket.emit("joinGame", { name: playerName });
     });
-
     // Получаем список всех игроков, кто зашел раньше нас
     this.socket.on("currentPlayers", (players: any) => {
       Object.keys(players).forEach((id) => {
@@ -158,18 +145,19 @@ export class MainSceneMultiPlayer extends Phaser.Scene {
       });
     });
 
-    // ИСПРАВЛЕНО: Теперь пуля противника берется из ПРАВИЛЬНОЙ группы enemyBullets
+    // Слушаем стрельбу соперников
     this.socket.on("enemyFired", (fireData: any) => {
-      const bullet = this.enemyBullets.get() as Bullet | null;
-      if (bullet) {
-        bullet.fire(fireData.x, fireData.y, fireData.rotation);
+      const enemyBullet = this.enemyBullets.get() as Bullet | null;
+      if (enemyBullet) {
+        // Создаем пулю на экранах всех игроков, летящую от чужого танка
+        enemyBullet.fire(fireData.x, fireData.y, fireData.rotation);
       }
     });
 
-    // Слушаем изменение здоровья
+    // Слушаем изменение здоровья (включая нас самих)
     this.socket.on("playerHealthChanged", (data: any) => {
       if (data.id === this.socket.id) {
-        // Урон нанесли НАМ
+        // РАНИЛИ НАС: обновляем Zustand HUD и запускаем мигание
         useGameStore.getState().setHp(data.hp);
         this.tank.playDamageEffect();
 
@@ -177,17 +165,39 @@ export class MainSceneMultiPlayer extends Phaser.Scene {
           this.handleGameOver("Ваш танк был уничтожен в бою!");
         }
       } else {
-        // Урон нанесли СОПЕРНИКУ
+        // РАНИЛИ СОПЕРНИКА: находим его спрайт и заставляем мигать
         this.remotePlayers.getChildren().forEach((remotePlayer: any) => {
           if (remotePlayer.id === data.id) {
             remotePlayer.playDamageEffect();
           }
         });
+
+        // Если это мы попали в него, увеличиваем счет в HUD за меткий выстрел
+        if (data.attackerId === this.socket.id) {
+          // Вы можете добавить стейт countsHit в Zustand сторе
+          // useGameStore.getState().incrementHit();
+        }
       }
     });
 
+    // Синхронное удаление объектов (стен)
+    this.socket.on(
+      "tileDestroyedByEnemy",
+      (tileData: { x: number; y: number }) => {
+        this.layer2.removeTileAt(tileData.x, tileData.y, true, true);
+      },
+    );
+
     // Слушаем отключение игрока
     this.socket.on("playerDisconnected", (id: string) => {
+      this.remotePlayers.getChildren().forEach((remotePlayer: any) => {
+        if (remotePlayer.id === id) {
+          remotePlayer.destroyPlayer();
+        }
+      });
+    });
+
+    this.socket.on("playerDestroyed", ({ id, killedBy }) => {
       this.remotePlayers.getChildren().forEach((remotePlayer: any) => {
         if (remotePlayer.id === id) {
           remotePlayer.destroyPlayer();
@@ -199,21 +209,31 @@ export class MainSceneMultiPlayer extends Phaser.Scene {
     const unsubscribe = useGameStore.subscribe((state) => {
       if (state.gameStatus === "menu") {
         unsubscribe();
-        this.socket.disconnect();
+
+        // 1. Очищаем слушатели сокетов сцены, чтобы не плодить утечки памяти
+        this.cleanupSceneListeners();
+
+        // 2. Рвем сетевое соединение (сервер тут же уберет танк у остальных игроков)
+        if (this.socket) {
+          this.socket.disconnect();
+        }
+
+        // 3. Чистим физику и уходим в стартовую сцену Phaser
         this.physics.pause();
+        if (this.tank) this.tank.destroy();
         this.scene.start("StartScene");
+        this.cleanupSceneListeners();
       }
     });
   }
 
   update(time: number, delta: number) {
-    // ВНИМАНИЕ: Проверьте, совпадает ли регистр строки с вашим Zustand-стором ("multiPlayer" или "multiplayerLobby")
     if (useGameStore.getState().gameStatus !== "multiPlayer") return;
 
     // 1. Двигаем наш танк локально через клавиатуру
     this.tank.updatePhysics((reason) => this.handleGameOver(reason));
 
-    // 2. ОТПРАВКА НАШИХ КООРДИНАТ НА СЕРВЕР (Только при изменении)
+    // 2. ОТПРАВКА НАШИХ КООРДИНАТ НА СЕРВЕР (Только если они изменились)
     if (
       this.tank.x !== this.lastPosition.x ||
       this.tank.y !== this.lastPosition.y ||
@@ -247,6 +267,7 @@ export class MainSceneMultiPlayer extends Phaser.Scene {
       bullet.fire(this.tank.x, this.tank.y, this.tank.rotation);
       useGameStore.getState().setBulletsCount(currentBullets - 1);
 
+      // СЕТЕВАЯ СТРЕЛЬБА: Сообщаем серверу, что мы сделали выстрел
       this.socket.emit("playerFire", {
         x: this.tank.x,
         y: this.tank.y,
@@ -263,47 +284,129 @@ export class MainSceneMultiPlayer extends Phaser.Scene {
       playerInfo.id,
       playerInfo.name,
     );
+
+    // Добавляем в обычную группу (теперь настройки immovable внутри RemotePlayer не слетят!)
     this.remotePlayers.add(remotePlayer);
+
+    // НАДО ДОБАВИТЬ: Жесткое столкновение вашего танка с конкретно этим игроком
+    this.physics.add.collider(this.tank, remotePlayer);
+  }
+
+  private handleMyBulletHitEnemy(bulletObject: any, remotePlayerObject: any) {
+    // На случай, если Phaser перепутал аргументы местами:
+    // Проверяем, принадлежит ли объект группе наших пуль
+    let bullet: Bullet;
+    let remotePlayer: RemotePlayer;
+
+    if (this.bullets.contains(bulletObject)) {
+      bullet = bulletObject as Bullet;
+      remotePlayer = remotePlayerObject as RemotePlayer;
+    } else {
+      bullet = remotePlayerObject as Bullet;
+      remotePlayer = bulletObject as RemotePlayer;
+    }
+
+    // Если пуля уже неактивна, ничего не делаем
+    if (!bullet || !bullet.active) return;
+
+    // Теперь метод .kill() гарантированно существует, так как это экземпляр класса Bullet
+    bullet.kill();
+
+    // Отправляем на сервер информацию, что мы попали в танк соперника
+    this.socket.emit("hitPlayer", {
+      targetId: remotePlayer.id,
+      damage: 50,
+    });
+  }
+
+  private handleEnemyHitMe(tankObject: any, enemyBulletObject: any) {
+    let enemyBullet: Bullet;
+
+    // Проверяем, какой из аргументов является пулей из вражеской группы
+    if (this.enemyBullets.contains(enemyBulletObject)) {
+      enemyBullet = enemyBulletObject as Bullet;
+    } else {
+      enemyBullet = tankObject as Bullet;
+    }
+
+    if (!enemyBullet || !enemyBullet.active) return;
+
+    // Визуально уничтожаем чужую пулю на своем экране
+    enemyBullet.kill();
   }
 
   private handleBulletHitWall(bullet: any, tile: any) {
     if (!bullet.active || tile.index === -1) return;
     (bullet as Bullet).kill();
-    this.layer2.removeTileAt(tile.x, tile.y, true, true);
+    // Отправляем запрос на удаление плитки у всех (включая себя)
+    // Чтобы избежать двойного удаления, локально removeTileAt выполнит событие сокета 'tileDestroyedByEnemy'
+    const isMyBullet = this.bullets.contains(bullet);
+    if (isMyBullet) {
+      this.socket.emit("tileDestroyed", { x: tile.x, y: tile.y });
+    }
   }
 
-  private handleMyBulletHitEnemy(bullet: any, remotePlayer: any) {
-    if (!bullet.active) return;
-    (bullet as Bullet).kill();
-
-    this.socket.emit("hitPlayer", {
-      targetId: remotePlayer.id,
-      damage: 20,
-    });
-  }
-
-  // ИСПРАВЛЕНО: Добавлен корректно закрытый метод для получения урона от чужой пули
-  private handleEnemyHitMe(tank: any, bullet: any) {
-    if (!bullet.active) return;
-    (bullet as Bullet).kill();
-    // Локально здоровье не отнимаем, ждем команду с сервера по сокетам!
-  }
+  //   private handleDesroyRemotePlayer(bullet: any, tile: any) {
+  //     if (!bullet.active || tile.index === -1) return;
+  //     (bullet as Bullet).kill();
+  //     // Отправляем запрос на удаление плитки у всех (включая себя)
+  //     // Чтобы избежать двойного удаления, локально removeTileAt выполнит событие сокета 'tileDestroyedByEnemy'
+  //     const isMyBullet = this.bullets.contains(bullet);
+  //     if (isMyBullet) {
+  //       this.socket.emit("tileDestroyed", { x: tile.x, y: tile.y });
+  //     }
+  //   }
 
   private handleGameOver(reason: string) {
-    this.socket.disconnect();
+    // 1. Бьем по тормозам и отключаем физический движок
+    this.tank.setVelocity(0);
     this.physics.pause();
 
+    // 2. Скрываем свой танк визуально и отключаем его хитбокс
+    this.tank.setActive(false);
+    this.tank.setVisible(false);
+    if (this.tank.body) {
+      this.tank.body.enable = false; // Пули в нас больше не полетят
+    }
+
+    // 4. Отрисовка текста по центру камеры
     const cam = this.cameras.main;
     const centerX = cam.scrollX + cam.width / 2;
     const centerY = cam.scrollY + cam.height / 2;
 
     this.add
-      .text(centerX, centerY - 50, "GAME OVER", {
+      .text(centerX, centerY - 50, "Потрачено", {
         fontSize: "48px",
         color: "#ff0000",
         fontStyle: "bold",
       })
       .setOrigin(0.5)
       .setDepth(10);
+
+    this.add
+      .text(
+        centerX,
+        centerY + 20,
+        `Причина: ${reason} \nНажмите кнопку Выход.`,
+        {
+          fontSize: "25px",
+          color: "#ffffff",
+          align: "center",
+        },
+      )
+      .setOrigin(0.5)
+      .setDepth(10);
+  }
+
+  private cleanupSceneListeners() {
+    if (this.socket) {
+      this.socket.off("currentPlayers");
+      this.socket.off("newPlayer");
+      this.socket.off("playerMoved");
+      this.socket.off("enemyFired");
+      this.socket.off("playerHealthChanged");
+      this.socket.off("playerDisconnected");
+      this.socket.off("tileDestroyedByEnemy");
+    }
   }
 }
