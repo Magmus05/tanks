@@ -1,4 +1,4 @@
-# React + TypeScript + Vite + Phaser 4 + WebSocets
+# React + TypeScript + Vite + Phaser 4 + WebSocets + Zustand
 Браузерная игра Танчики, одиночная игра с ботами или мультиплеер.
 Для мультиплеера потребуется скачать tanks-server , и настроить локальную сеть.
 
